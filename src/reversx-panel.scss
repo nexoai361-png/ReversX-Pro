@@ -1,0 +1,587 @@
+/* ReversX AI Panel - Styled Chatbox Component */
+:root {
+  --bg-editor: var(--bg-main, #1e1e1e);
+  --bg-sidebar: var(--bg-panel, #252526);
+  --border-color: var(--border, #333333);
+  --muted-line: var(--border, #3c3c3c);
+  --text-main: var(--text-normal, #cccccc);
+  --text-muted: var(--text-dim, #858585);
+  --user-blue: var(--accent, #007acc);
+}
+
+reversx-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.ai-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  background-color: var(--bg-main, var(--bg-editor, #1e1e1e));
+  color: var(--text-normal, var(--text-main, #cccccc));
+  overflow: hidden;
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.ai-header {
+  padding: 12px 16px;
+  background-color: var(--bg-panel, var(--bg-sidebar, #252526));
+  border-bottom: 1px solid var(--border, var(--border-color, #333333));
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  font-family: 'Lato', sans-serif !important;
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .bot-symbol {
+    font-family: monospace !important;
+    font-size: 13px;
+    color: var(--accent, #4ec9b0);
+    font-weight: bold;
+  }
+
+  span.status {
+    font-size: 10px;
+    color: var(--accent, #4ec9b0);
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+}
+
+.ai-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+  font-family: 'Lato', sans-serif !important;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border, rgba(255, 255, 255, 0.15));
+    border-radius: 3px;
+  }
+}
+
+/* Mid-small Lato font applied to questions and answers */
+.message {
+  font-family: 'Lato', sans-serif !important;
+  font-size: 13px;
+  padding: 10px 12px;
+  max-width: 85%;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* User Message: Rounded corners, theme accent background */
+.message.user {
+  background-color: var(--accent, var(--user-blue, #007acc));
+  color: #ffffff;
+  align-self: flex-end;
+  border-radius: 16px 16px 4px 16px;
+  border: none;
+}
+
+/* Agent Tag Box Style */
+.agent-tag-box {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.4));
+  color: var(--text-bright, #ffffff);
+  font-family: 'Lato', sans-serif !important;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+/* Bullet points formatting for paragraph questions */
+.message.user ul {
+  margin-left: 16px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.message.user li {
+  margin-bottom: 5px;
+  font-family: 'Lato', sans-serif !important;
+  font-size: 13px;
+}
+
+.message.user li:last-child {
+  margin-bottom: 0;
+}
+
+/* Boxed Show More/Less Toggle Button */
+.toggle-read-more {
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.25));
+  color: var(--text-bright, #ffffff);
+  cursor: pointer;
+  font-family: 'Lato', sans-serif !important;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  text-align: center;
+  transition: background 0.2s;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* AI Answer: Separated and framed using horizontal lines */
+.message.ai {
+  background-color: transparent;
+  color: var(--text-normal, var(--text-main, #cccccc));
+  align-self: stretch;
+  max-width: 100%;
+  border: none;
+  border-top: 1px solid var(--border, var(--muted-line, #3c3c3c));
+  border-bottom: 1px solid var(--border, var(--muted-line, #3c3c3c));
+  padding: 10px 4px;
+  font-size: 13px;
+  font-family: 'Lato', sans-serif !important;
+
+  pre {
+    background-color: var(--input-bg, var(--bg-panel, #121212));
+    border: 1px solid var(--border, #333333);
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace !important;
+    font-size: 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+    color: var(--text-normal, #4ec9b0);
+  }
+
+  code {
+    font-family: monospace !important;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--text-bright, #ffffff);
+  }
+}
+
+/* Centered Initial Placeholder Message */
+.message.ai.initial-message {
+  margin: auto;
+  color: var(--text-dim, var(--text-muted, #858585));
+  font-size: 13px;
+  text-align: center;
+  max-width: 100%;
+  align-self: center;
+  border: none;
+  padding: 0;
+  font-family: 'Lato', sans-serif !important;
+}
+
+/* ==========================================================================
+   VS Code Copilot Chat UI Theme
+   ========================================================================== */
+
+/* Outer Input Area Container (VS Code Panel Bottom) */
+.ai-input-container {
+  padding: 8px 12px 10px 12px;
+  background-color: var(--bg-panel, var(--bg-sidebar, #252526));
+  border-top: 1px solid var(--border, var(--border-color, #333333));
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* VS Code Input Card */
+.vscode-chat-card {
+  position: relative;
+  background-color: var(--input-bg, var(--bg-main, #1e1e1e));
+  border: 1px solid var(--input-border, var(--border, #3c3c3c));
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 6px 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    border-color: var(--accent, #007fd4);
+    box-shadow: 0 0 0 1px var(--accent, #007fd4);
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 36px;
+    max-height: 140px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-normal, #cccccc);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px;
+    resize: none;
+    line-height: 1.4;
+    padding: 2px 0 4px 0;
+    overflow-y: auto;
+
+    &::placeholder {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      font-size: 12.5px;
+      color: var(--text-dim, #858585);
+    }
+  }
+}
+
+/* VS Code Chat Toolbar */
+.vscode-chat-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* VS Code Icon Buttons */
+.vscode-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim, #858585);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  outline: none;
+  padding: 0;
+
+  svg {
+    display: block;
+    pointer-events: none;
+  }
+
+  &:hover {
+    background-color: var(--border, #2a2d2e);
+    color: var(--text-bright, #ffffff);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Attach Plus Button Active State */
+.btn-attach {
+  &.active {
+    background-color: color-mix(in srgb, var(--accent, #007acc) 25%, transparent);
+    color: var(--accent, #3794ff);
+  }
+}
+
+/* VS Code Copilot Send Button */
+.vscode-btn-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background-color: var(--accent, #0e639c);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  outline: none;
+  padding: 0;
+
+  svg {
+    display: block;
+    pointer-events: none;
+  }
+
+  &:hover {
+    background-color: var(--accent-hover, var(--accent, #1177bb));
+  }
+
+  &:active {
+    background-color: var(--accent, #007acc);
+    transform: scale(0.95);
+  }
+}
+
+/* VS Code Upload Popup (QuickPick Dropdown Style) */
+.upload-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  background-color: var(--bg-panel, #252526);
+  border: 1px solid var(--border, #454545);
+  border-radius: 5px;
+  display: none;
+  flex-direction: column;
+  width: 140px;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  padding: 3px;
+
+  &.active {
+    display: flex;
+  }
+
+  .popup-item {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    color: var(--text-normal, #cccccc) !important;
+    cursor: pointer !important;
+    border-radius: 3px !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    transition: background-color 0.1s ease !important;
+
+    .popup-icon {
+      color: var(--text-dim, #858585);
+      flex-shrink: 0;
+      display: block;
+    }
+
+    span {
+      color: inherit;
+      font-size: 12px;
+    }
+
+    &:hover {
+      background-color: var(--border, #04395e) !important;
+      color: var(--text-bright, #ffffff) !important;
+
+      .popup-icon {
+        color: var(--accent, #3794ff);
+      }
+    }
+  }
+}
+
+/* VS Code Agent Auto-complete Popup Menu */
+.autocomplete-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  right: 12px;
+  background-color: var(--bg-panel, #252526);
+  border: 1px solid var(--border, #454545);
+  border-radius: 5px;
+  display: none;
+  flex-direction: column;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 4px;
+
+  &.active {
+    display: flex;
+  }
+
+  .popup-header {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim, #858585);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border, #3c3c3c);
+    margin-bottom: 2px;
+  }
+}
+
+.autocomplete-item {
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-normal, #cccccc);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .agent-tag {
+    font-weight: 600;
+    color: var(--accent, #3794ff);
+  }
+
+  .agent-desc {
+    font-size: 11px;
+    color: var(--text-dim, #858585);
+  }
+
+  &:hover {
+    background-color: var(--border, #04395e);
+    color: var(--text-bright, #ffffff);
+
+    .agent-desc {
+      color: var(--text-normal, #cccccc);
+    }
+  }
+}
+
+/* Full Screen Vertical Screen Editor Overlay */
+.fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--bg-main, #1e1e1e);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+
+  &.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, #3c3c3c);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-bright, #ffffff);
+  flex-shrink: 0;
+  font-family: 'Lato', sans-serif !important;
+}
+
+.fullscreen-close {
+  background-color: var(--accent, #007acc);
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif !important;
+}
+
+.fullscreen-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-normal, #ffffff);
+  font-family: 'Lato', sans-serif !important;
+  font-size: 14px;
+  resize: none;
+  padding-top: 16px;
+  line-height: 1.5;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==========================================================================
+   Android Landscape Mode Optimizations
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 600px) {
+  .ai-header {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .ai-messages {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .message {
+    font-size: 12.5px;
+    padding: 8px 10px;
+  }
+
+  .message.ai {
+    padding: 8px 4px;
+    font-size: 12.5px;
+
+    pre {
+      padding: 8px;
+      margin: 6px 0;
+      font-size: 11px;
+    }
+  }
+
+  .ai-input-container {
+    padding: 6px 10px;
+  }
+
+  .vscode-chat-card {
+    padding: 6px 8px 4px 8px;
+
+    textarea {
+      min-height: 28px;
+      max-height: 80px;
+      font-size: 12px;
+      padding: 1px 0 2px 0;
+
+      &::placeholder {
+        font-size: 11.5px;
+      }
+    }
+  }
+
+  .autocomplete-popup {
+    max-height: 120px;
+  }
+}
+

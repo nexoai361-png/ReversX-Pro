@@ -1,0 +1,10 @@
+{
+  "name": "ReversX Pro",
+  "description": "Minimal browser-based SSH PTY terminal for Termux. Fast, secure, and built specifically for Android users.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
