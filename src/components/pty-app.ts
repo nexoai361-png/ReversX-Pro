@@ -9,10 +9,59 @@ import { get, set, del } from 'idb-keyval';
 import Pickr from '@simonwep/pickr';
 import '@simonwep/pickr/dist/themes/nano.min.css';
 
+export interface TerminalSession {
+  id: string;
+  name: string;
+  term: Terminal;
+  fitAddon: FitAddon;
+  webLinksAddon: WebLinksAddon;
+  searchAddon: SearchAddon;
+  ws: WebSocket | null;
+  status: string;
+  statusType: string;
+  dimsText: string;
+  heartbeatInterval?: any;
+  pingInterval?: any;
+  latency: number | null;
+  totalBytes: number;
+  lastByteCount: number;
+  containerElement?: HTMLElement;
+}
+
 @customElement('pty-app')
 export class PtyApp extends LitElement {
   createRenderRoot() {
     return this;
+  }
+
+  // Active terminal sessions
+  @state() sessions: TerminalSession[] = [];
+  @state() activeSessionId: string = '';
+  @state() editingSessionId: string | null = null;
+  @state() editingSessionName: string = '';
+
+  get activeSession(): TerminalSession | undefined {
+    return this.sessions.find(s => s.id === this.activeSessionId) || this.sessions[0];
+  }
+
+  get term(): Terminal {
+    return this.activeSession?.term!;
+  }
+
+  get ws(): WebSocket | null {
+    return this.activeSession?.ws || null;
+  }
+
+  get fitAddon(): FitAddon {
+    return this.activeSession?.fitAddon!;
+  }
+
+  get searchAddon(): SearchAddon {
+    return this.activeSession?.searchAddon!;
+  }
+
+  get webLinksAddon(): WebLinksAddon {
+    return this.activeSession?.webLinksAddon!;
   }
 
   // Active view tab: 'setup' | 'terminal' | 'documentation' | 'welcome'
@@ -56,7 +105,7 @@ export class PtyApp extends LitElement {
   @state() terminalCursorStyle: string = "block";
   @state() terminalCursorStyleLabel: string = "Blinking Block";
   @state() wordWrap: boolean = true;
-  @state() terminalFontSize: number = 14;
+  @state() terminalFontSize: number = 10;
   @state() terminalCustomFg: string = '#cccccc';
   @state() terminalCustomBg: string = '#1e1e1e';
   @state() customThemes: Array<{ value: string; label: string; background: string; foreground: string; cursor: string }> = [];
@@ -178,11 +227,6 @@ export class PtyApp extends LitElement {
   private tooltipTimer: any = null;
   private toolbarHideTimer: any;
 
-  private term!: Terminal;
-  private fitAddon!: FitAddon;
-  private webLinksAddon!: WebLinksAddon;
-  private searchAddon!: SearchAddon;
-  private ws: WebSocket | null = null;
   private heartbeatInterval: any = null;
   private pingInterval: any = null;
   private resizeObserver!: ResizeObserver;
@@ -365,9 +409,15 @@ export class PtyApp extends LitElement {
     window.removeEventListener('resize', this.onWindowResize);
     window.removeEventListener('click', this.onWindowClick);
     window.removeEventListener('keydown', this.handleKeyDown);
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.resizeObserver) this.resizeObserver.disconnect();
-    if (this.ws) this.ws.close();
+    this.sessions.forEach(s => {
+      if (s.heartbeatInterval) clearInterval(s.heartbeatInterval);
+      if (s.pingInterval) clearInterval(s.pingInterval);
+      if (s.ws) {
+        try { s.ws.close(); } catch (e) {}
+      }
+      try { s.term.dispose(); } catch (e) {}
+    });
   }
 
   private handleKeyDown = (e: KeyboardEvent) => {
@@ -390,126 +440,8 @@ export class PtyApp extends LitElement {
   }
 
   private initTerminal() {
-    const terminalDiv = this.querySelector('#terminal') as HTMLElement;
-    if (!terminalDiv) return;
-
-    const cursorStyleValue = this.terminalCursorStyle || 'block';
-    const isBlinking = !cursorStyleValue.endsWith('-solid');
-    const cleanCursorStyle = cursorStyleValue.replace('-solid', '') as 'block' | 'underline' | 'bar';
-
-    const baseTheme = this.themes[this.terminalTheme] || this.themes['default'];
-    const customTheme = {
-      ...baseTheme,
-      foreground: this.terminalCustomFg,
-      background: this.terminalCustomBg,
-      cursor: baseTheme.cursor || this.terminalCustomFg
-    };
-
-    this.term = new Terminal({
-      cursorBlink: isBlinking,
-      cursorStyle: cleanCursorStyle,
-      convertEol: true,
-      allowProposedApi: true,
-      allowTransparency: true,
-      drawBoldTextInBrightColors: true,
-      theme: customTheme,
-      fontSize: this.terminalFontSize,
-      fontFamily: this.terminalFont,
-      letterSpacing: 0.5,
-      lineHeight: 1.2,
-      scrollback: 10000
-    });
-
-    this.fitAddon = new FitAddon();
-    this.webLinksAddon = new WebLinksAddon();
-    this.searchAddon = new SearchAddon();
-
-    this.term.loadAddon(this.fitAddon);
-    this.term.loadAddon(this.webLinksAddon);
-    this.term.loadAddon(this.searchAddon);
-
-    this.term.open(terminalDiv);
-    terminalDiv.addEventListener('pointerdown', () => {
-      if (this.isSidebarOpen) {
-        this.isSidebarOpen = false;
-      }
-    });
+    this.createTerminalSession('Terminal 1', false);
     this.initDraggableSearchBar();
-
-    const viewport = terminalDiv.querySelector('.xterm-viewport') as HTMLElement;
-    if (viewport) {
-      viewport.addEventListener('scroll', this.handleScroll);
-    }
-
-    this.term.onResize(size => {
-      if (size.cols > 0 && size.rows > 0) {
-        this.dimsText = `${size.cols} x ${size.rows}`;
-        if (this.ws?.readyState === 1) {
-          this.ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
-        }
-      }
-    });
-
-    this.term.onData(data => {
-      this.resetToolbarTimer();
-      let sendData = data;
-
-      if (this.ctrlActive && data.length === 1) {
-        const char = data.toLowerCase();
-        if (char >= 'a' && char <= 'z') {
-          sendData = String.fromCharCode(char.charCodeAt(0) - 96);
-        } else if (char === ' ') {
-          sendData = '\x00';
-        } else if (char === '[') {
-          sendData = '\x1b';
-        } else if (char === '\\') {
-          sendData = '\x1c';
-        } else if (char === ']') {
-          sendData = '\x1d';
-        } else if (char === '^') {
-          sendData = '\x1e';
-        } else if (char === '_') {
-          sendData = '\x1f';
-        }
-        this.ctrlActive = false;
-      }
-
-      if (this.altActive && sendData.length === 1) {
-        sendData = '\x1b' + sendData;
-        this.altActive = false;
-      }
-
-      if (this.ws?.readyState === 1) {
-        this.ws.send(JSON.stringify({ type: 'input', data: sendData }));
-      }
-    });
-
-    if (document.fonts) {
-      document.fonts.ready.then(() => {
-        setTimeout(() => this.triggerManualResize(), 500);
-      });
-    } else {
-      setTimeout(() => this.triggerManualResize(), 500);
-    }
-
-    this.term.attachCustomKeyEventHandler((e) => {
-      if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        if (e.type === 'keydown') this.openSearch();
-        return false;
-      }
-      if (e.altKey && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        if (e.type === 'keydown') this.adjustFontSize(1);
-        return false;
-      }
-      if (e.altKey && e.key === '-') {
-        e.preventDefault();
-        if (e.type === 'keydown') this.adjustFontSize(-1);
-        return false;
-      }
-      return true;
-    });
 
     const terminalContainer = this.querySelector('#terminal-container') as HTMLElement;
     if (terminalContainer) {
@@ -519,8 +451,13 @@ export class PtyApp extends LitElement {
       this.resizeObserver.observe(terminalContainer);
     }
 
-    // Apply word wrap styling
-    this.applyWordWrapToDOM();
+    if (document.fonts) {
+      document.fonts.ready.then(() => {
+        setTimeout(() => this.triggerManualResize(), 500);
+      });
+    } else {
+      setTimeout(() => this.triggerManualResize(), 500);
+    }
   }
 
   private defaultMacros = [
@@ -727,19 +664,322 @@ export class PtyApp extends LitElement {
 
   private triggerManualResize = () => {
     const container = this.querySelector('#terminal-container') as HTMLElement;
-    const terminalDiv = this.querySelector('#terminal') as HTMLElement;
-    if (!container || !terminalDiv || !this.term) return;
-
-    try {
-      if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
-      this.fitAddon.fit();
-      if (document.activeElement?.tagName !== 'INPUT') {
-        this.term?.focus?.();
+    if (!container) return;
+    const active = this.activeSession;
+    if (active && active.term && active.fitAddon) {
+      try {
+        if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+          active.fitAddon.fit();
+          if (document.activeElement?.tagName !== 'INPUT') {
+            active.term.focus?.();
+          }
+        }
+      } catch (e) {
+        console.warn("Resize fit failed:", e);
       }
-    } catch (e) {
-      console.warn("Resize fit failed:", e);
     }
   };
+
+  createTerminalSession(name?: string, autoConnect = false): TerminalSession {
+    const nextNum = this.sessions.length + 1;
+    const sessionName = name || `Terminal ${nextNum}`;
+    const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+    let mountsWrapper = this.querySelector('#terminal-mounts-wrapper') as HTMLElement;
+    if (!mountsWrapper) {
+      const container = this.querySelector('#terminal-container');
+      if (container) {
+        mountsWrapper = document.createElement('div');
+        mountsWrapper.id = 'terminal-mounts-wrapper';
+        mountsWrapper.style.width = '100%';
+        mountsWrapper.style.height = '100%';
+        mountsWrapper.style.position = 'relative';
+        container.appendChild(mountsWrapper);
+      }
+    }
+
+    const containerDiv = document.createElement('div');
+    containerDiv.id = `term-mount-${id}`;
+    containerDiv.className = 'session-terminal-canvas active';
+    containerDiv.style.width = '100%';
+    containerDiv.style.height = '100%';
+    containerDiv.style.position = 'absolute';
+    containerDiv.style.top = '0';
+    containerDiv.style.left = '0';
+    containerDiv.style.right = '0';
+    containerDiv.style.bottom = '0';
+    containerDiv.style.backgroundColor = this.terminalCustomBg || '#1e1e1e';
+
+    if (mountsWrapper) {
+      mountsWrapper.appendChild(containerDiv);
+    }
+
+    const cursorStyleValue = this.terminalCursorStyle || 'block';
+    const isBlinking = !cursorStyleValue.endsWith('-solid');
+    const cleanCursorStyle = cursorStyleValue.replace('-solid', '') as 'block' | 'underline' | 'bar';
+
+    const baseTheme = this.themes[this.terminalTheme] || this.themes['default'];
+    const customTheme = {
+      ...baseTheme,
+      foreground: this.terminalCustomFg,
+      background: this.terminalCustomBg,
+      cursor: baseTheme.cursor || this.terminalCustomFg
+    };
+
+    const term = new Terminal({
+      cursorBlink: isBlinking,
+      cursorStyle: cleanCursorStyle,
+      convertEol: true,
+      allowProposedApi: true,
+      allowTransparency: true,
+      drawBoldTextInBrightColors: true,
+      theme: customTheme,
+      fontSize: this.terminalFontSize,
+      fontFamily: this.terminalFont,
+      letterSpacing: 0.5,
+      lineHeight: 1.2,
+      scrollback: 10000
+    });
+
+    const fitAddon = new FitAddon();
+    const webLinksAddon = new WebLinksAddon();
+    const searchAddon = new SearchAddon();
+
+    term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+    term.loadAddon(searchAddon);
+
+    term.open(containerDiv);
+
+    containerDiv.addEventListener('pointerdown', () => {
+      if (this.isSidebarOpen) {
+        this.isSidebarOpen = false;
+      }
+    });
+
+    const viewport = containerDiv.querySelector('.xterm-viewport') as HTMLElement;
+    if (viewport) {
+      viewport.addEventListener('scroll', this.handleScroll);
+    }
+
+    const session: TerminalSession = {
+      id,
+      name: sessionName,
+      term,
+      fitAddon,
+      webLinksAddon,
+      searchAddon,
+      ws: null,
+      status: 'IDLE',
+      statusType: 'default',
+      dimsText: '-- x --',
+      latency: null,
+      totalBytes: 0,
+      lastByteCount: 0,
+      containerElement: containerDiv
+    };
+
+    term.onResize(size => {
+      if (size.cols > 0 && size.rows > 0) {
+        session.dimsText = `${size.cols} x ${size.rows}`;
+        if (session.id === this.activeSessionId) {
+          this.dimsText = session.dimsText;
+        }
+        if (session.ws?.readyState === 1) {
+          session.ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+        }
+      }
+    });
+
+    term.onData(data => {
+      this.resetToolbarTimer();
+      let sendData = data;
+
+      if (this.ctrlActive && data.length === 1) {
+        const char = data.toLowerCase();
+        if (char >= 'a' && char <= 'z') {
+          sendData = String.fromCharCode(char.charCodeAt(0) - 96);
+        } else if (char === ' ') {
+          sendData = '\x00';
+        } else if (char === '[') {
+          sendData = '\x1b';
+        } else if (char === '\\') {
+          sendData = '\x1c';
+        } else if (char === ']') {
+          sendData = '\x1d';
+        } else if (char === '^') {
+          sendData = '\x1e';
+        } else if (char === '_') {
+          sendData = '\x1f';
+        }
+        this.ctrlActive = false;
+      }
+
+      if (this.altActive && sendData.length === 1) {
+        sendData = '\x1b' + sendData;
+        this.altActive = false;
+      }
+
+      if (session.ws?.readyState === 1) {
+        session.ws.send(JSON.stringify({ type: 'input', data: sendData }));
+      }
+    });
+
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        if (e.type === 'keydown') this.openSearch();
+        return false;
+      }
+      if (e.altKey && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        if (e.type === 'keydown') this.adjustFontSize(1);
+        return false;
+      }
+      if (e.altKey && e.key === '-') {
+        e.preventDefault();
+        if (e.type === 'keydown') this.adjustFontSize(-1);
+        return false;
+      }
+      return true;
+    });
+
+    this.sessions = [...this.sessions, session];
+    this.switchTerminalSession(session.id);
+
+    if (autoConnect) {
+      this.initWSConnectionForSession(session, () => {
+        setTimeout(() => {
+          this.triggerManualResize();
+          session.ws?.send(JSON.stringify({
+            type: 'init',
+            host: this.host,
+            port: this.port,
+            username: this.user,
+            password: this.pass,
+            rows: session.term.rows || 24,
+            cols: session.term.cols || 80
+          }));
+        }, 100);
+      });
+    }
+
+    this.applyWordWrapToDOM();
+    return session;
+  }
+
+  switchTerminalSession(sessionId: string) {
+    this.activeSessionId = sessionId;
+    this.sessions.forEach(s => {
+      if (s.containerElement) {
+        if (s.id === sessionId) {
+          s.containerElement.style.display = 'block';
+          s.containerElement.classList.add('active');
+          s.containerElement.classList.remove('hidden');
+        } else {
+          s.containerElement.style.display = 'none';
+          s.containerElement.classList.remove('active');
+          s.containerElement.classList.add('hidden');
+        }
+      }
+    });
+
+    const active = this.activeSession;
+    if (active) {
+      this.status = active.status;
+      this.statusType = active.statusType;
+      this.dimsText = active.dimsText;
+      this.latency = active.latency;
+      
+      requestAnimationFrame(() => {
+        try {
+          active.fitAddon.fit();
+          active.term.focus();
+        } catch (e) {}
+      });
+    }
+    this.requestUpdate();
+  }
+
+  closeTerminalSession(sessionId: string) {
+    const sessionIndex = this.sessions.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) return;
+
+    const session = this.sessions[sessionIndex];
+    if (session.heartbeatInterval) clearInterval(session.heartbeatInterval);
+    if (session.pingInterval) clearInterval(session.pingInterval);
+    if (session.ws) {
+      try {
+        session.ws.close();
+      } catch (e) {}
+    }
+    try {
+      session.term.dispose();
+    } catch (e) {}
+
+    if (session.containerElement && session.containerElement.parentNode) {
+      session.containerElement.parentNode.removeChild(session.containerElement);
+    }
+
+    const remaining = this.sessions.filter(s => s.id !== sessionId);
+    this.sessions = remaining;
+
+    if (remaining.length > 0) {
+      if (this.activeSessionId === sessionId) {
+        const nextIndex = Math.max(0, sessionIndex - 1);
+        this.switchTerminalSession(remaining[nextIndex].id);
+      }
+    } else {
+      this.createTerminalSession('Terminal 1', false);
+    }
+    this.requestUpdate();
+  }
+
+  createNextTerminalSession(autoConnect = true) {
+    let maxNum = 0;
+    this.sessions.forEach(s => {
+      const match = s.name.match(/Terminal\s+(\d+)/i);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    });
+    const newName = `Terminal ${maxNum + 1 || this.sessions.length + 1}`;
+    this.createTerminalSession(newName, autoConnect);
+  }
+
+  startRenamingSession(sessionId: string, currentName: string) {
+    this.editingSessionId = sessionId;
+    this.editingSessionName = currentName;
+    this.requestUpdate();
+    setTimeout(() => {
+      const input = this.querySelector('.terminal-tab-rename-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 50);
+  }
+
+  saveSessionRename(sessionId: string) {
+    if (this.editingSessionId !== sessionId) return;
+    const trimmed = (this.editingSessionName || '').trim();
+    if (trimmed) {
+      const session = this.sessions.find(s => s.id === sessionId);
+      if (session) {
+        session.name = trimmed;
+      }
+    }
+    this.editingSessionId = null;
+    this.editingSessionName = '';
+    this.requestUpdate();
+  }
+
+  cancelSessionRename() {
+    this.editingSessionId = null;
+    this.editingSessionName = '';
+    this.requestUpdate();
+  }
 
   private async tryAttachSession() {
     const saved = await get('ssh_active_session');
@@ -749,27 +989,28 @@ export class PtyApp extends LitElement {
       const session = JSON.parse(saved);
       if (!session.id || !session.token) return;
 
-      if (this.term) {
-        this.term.write('\x1b[36m[SYSTEM] Attempting to resume previous session...\r\n\x1b[0m');
-      }
-      this.updateUIStatus('RESUMING', 'connecting');
-      this.setView('terminal');
+      const active = this.activeSession;
+      if (active && active.term) {
+        active.term.write('\x1b[36m[SYSTEM] Attempting to resume previous session...\r\n\x1b[0m');
+        this.updateUIStatus('RESUMING', 'connecting');
+        this.setView('terminal');
 
-      this.initWSConnection(() => {
-        this.ws?.send(JSON.stringify({
-          type: 'attach',
-          id: session.id,
-          token: session.token
-        }));
-      });
+        this.initWSConnectionForSession(active, () => {
+          active.ws?.send(JSON.stringify({
+            type: 'attach',
+            id: session.id,
+            token: session.token
+          }));
+        });
+      }
     } catch (e) {
       await del('ssh_active_session');
     }
   }
 
-  private initWSConnection(onOpenCallback?: () => void) {
-    if (this.ws) {
-      this.ws.close();
+  private initWSConnectionForSession(session: TerminalSession, onOpenCallback?: () => void) {
+    if (session.ws) {
+      try { session.ws.close(); } catch (e) {}
     }
     let url = '';
     if (this.wsBridgeUrl && this.wsBridgeUrl.trim()) {
@@ -789,83 +1030,130 @@ export class PtyApp extends LitElement {
         url = `${proto}//${location.host}`;
       }
     }
-    this.ws = new WebSocket(url);
+    const ws = new WebSocket(url);
+    session.ws = ws;
 
-    this.ws.onopen = () => {
-      this.updateUIStatus('WS_OPEN', 'online');
+    ws.onopen = () => {
+      session.status = 'WS_OPEN';
+      session.statusType = 'online';
+      if (session.id === this.activeSessionId) {
+        this.updateUIStatus('WS_OPEN', 'online');
+      }
+      this.requestUpdate();
+
       if (onOpenCallback) onOpenCallback();
 
-      if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = setInterval(() => {
-        if (this.ws?.readyState === 1) {
-          this.ws.send(JSON.stringify({ type: 'heartbeat' }));
+      if (session.heartbeatInterval) clearInterval(session.heartbeatInterval);
+      session.heartbeatInterval = setInterval(() => {
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: 'heartbeat' }));
         }
       }, 25000);
 
-      if (this.pingInterval) clearInterval(this.pingInterval);
-      this.pingInterval = setInterval(() => {
-        if (this.ws?.readyState === 1) {
-          this.ws.send(JSON.stringify({ type: 'ping', sendTime: Date.now() }));
+      if (session.pingInterval) clearInterval(session.pingInterval);
+      session.pingInterval = setInterval(() => {
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: 'ping', sendTime: Date.now() }));
         }
       }, 3000);
 
       // Trigger immediate first ping
-      if (this.ws?.readyState === 1) {
-        this.ws.send(JSON.stringify({ type: 'ping', sendTime: Date.now() }));
+      if (ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'ping', sendTime: Date.now() }));
       }
     };
 
-    this.ws.onmessage = (e) => {
+    ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === 'data') {
-          if (this.term) {
-            this.term.write(msg.data);
-            this.totalBytes += new TextEncoder().encode(msg.data).length;
+          if (session.term) {
+            session.term.write(msg.data);
+            const byteLen = new TextEncoder().encode(msg.data).length;
+            session.totalBytes += byteLen;
+            this.totalBytes += byteLen;
           }
         } else if (msg.type === 'pong') {
-          this.latency = Date.now() - msg.sendTime;
-        } else if (msg.type === 'status') {
-          this.updateUIStatus(msg.data, msg.data === 'READY' ? 'online' : 'connecting');
-          if (msg.data === 'READY') {
-            if (this.term) this.term.write('\x1b[32m[SYSTEM] Channel Secure. Welcome to ReversX.\r\n\x1b[0m');
+          session.latency = Date.now() - msg.sendTime;
+          if (session.id === this.activeSessionId) {
+            this.latency = session.latency;
+            this.requestUpdate();
           }
+        } else if (msg.type === 'status') {
+          session.status = msg.data;
+          session.statusType = (msg.data === 'READY' ? 'online' : 'connecting');
+          if (session.id === this.activeSessionId) {
+            this.updateUIStatus(msg.data, session.statusType);
+          }
+          if (msg.data === 'READY') {
+            if (session.term) session.term.write(`\x1b[32m[SYSTEM] Channel Secure (${session.name}). Welcome to ReversX.\r\n\x1b[0m`);
+          }
+          this.requestUpdate();
         } else if (msg.type === 'session_info') {
-          set('ssh_active_session', JSON.stringify(msg.data));
-          this.labelInfo = `${this.user}@${this.host}`;
+          if (session.id === this.activeSessionId) {
+            set('ssh_active_session', JSON.stringify(msg.data));
+            this.labelInfo = `${this.user}@${this.host}`;
+          }
         } else if (msg.type === 'session_expired') {
-          del('ssh_active_session');
-          this.setView('setup');
-          alert("Session has expired or server restarted.");
+          if (session.id === this.activeSessionId) {
+            del('ssh_active_session');
+            this.setView('setup');
+            alert("Session has expired or server restarted.");
+          }
         } else if (msg.type === 'error') {
-          if (this.term) this.term.write(`\r\n\x1b[31m[ENGINE_ERROR] ${msg.data}\x1b[0m\r\n`);
-          this.updateUIStatus('ERROR', 'error');
+          if (session.term) session.term.write(`\r\n\x1b[31m[ENGINE_ERROR] ${msg.data}\x1b[0m\r\n`);
+          session.status = 'ERROR';
+          session.statusType = 'error';
+          if (session.id === this.activeSessionId) {
+            this.updateUIStatus('ERROR', 'error');
+          }
+          this.requestUpdate();
         } else if (msg.type === 'banner') {
-          if (this.term) this.term.write(`\r\n\x1b[33m${msg.data}\x1b[0m\r\n`);
+          if (session.term) session.term.write(`\r\n\x1b[33m${msg.data}\x1b[0m\r\n`);
         }
       } catch (err) {
         console.error("WebSocket message parse error", err);
       }
     };
 
-    this.ws.onclose = () => {
-      this.updateUIStatus('DISCONNECTED', 'error');
-      if (this.term) this.term.write('\r\n\x1b[31m[SYSTEM] Connection terminated (or tab closed).\x1b[0m\r\n');
-      if (this.heartbeatInterval) {
-        clearInterval(this.heartbeatInterval);
-        this.heartbeatInterval = null;
+    ws.onclose = () => {
+      session.status = 'DISCONNECTED';
+      session.statusType = 'error';
+      if (session.id === this.activeSessionId) {
+        this.updateUIStatus('DISCONNECTED', 'error');
       }
-      if (this.pingInterval) {
-        clearInterval(this.pingInterval);
-        this.pingInterval = null;
+      if (session.term) session.term.write(`\r\n\x1b[31m[SYSTEM] Connection terminated for ${session.name}.\x1b[0m\r\n`);
+      if (session.heartbeatInterval) {
+        clearInterval(session.heartbeatInterval);
+        session.heartbeatInterval = null;
       }
-      this.latency = null;
+      if (session.pingInterval) {
+        clearInterval(session.pingInterval);
+        session.pingInterval = null;
+      }
+      session.latency = null;
+      if (session.id === this.activeSessionId) {
+        this.latency = null;
+      }
+      this.requestUpdate();
     };
 
-    this.ws.onerror = () => {
-      this.updateUIStatus('WS_ERROR', 'error');
-      if (this.term) this.term.write('\r\n\x1b[31m[SYSTEM] WebSocket circuit failure.\x1b[0m\r\n');
+    ws.onerror = () => {
+      session.status = 'WS_ERROR';
+      session.statusType = 'error';
+      if (session.id === this.activeSessionId) {
+        this.updateUIStatus('WS_ERROR', 'error');
+      }
+      if (session.term) session.term.write(`\r\n\x1b[31m[SYSTEM] WebSocket circuit failure (${session.name}).\x1b[0m\r\n`);
+      this.requestUpdate();
     };
+  }
+
+  private initWSConnection(onOpenCallback?: () => void) {
+    const active = this.activeSession;
+    if (active) {
+      this.initWSConnectionForSession(active, onOpenCallback);
+    }
   }
 
   private updateUIStatus(status: string, type: string = 'default') {
@@ -1510,29 +1798,40 @@ export class PtyApp extends LitElement {
     await this.savePrefs();
     await del('ssh_active_session');
 
-    if (this.ws) this.ws.close();
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    let active = this.activeSession;
+    if (!active) {
+      active = this.createTerminalSession('Terminal 1', false);
+    } else {
+      if (active.ws) {
+        try { active.ws.close(); } catch (e) {}
+      }
+      if (active.heartbeatInterval) clearInterval(active.heartbeatInterval);
+      if (active.pingInterval) clearInterval(active.pingInterval);
+    }
 
     this.setView('terminal');
 
-    this.initWSConnection(() => {
+    this.initWSConnectionForSession(active, () => {
       setTimeout(() => {
         this.triggerManualResize();
-        this.ws?.send(JSON.stringify({
+        active.ws?.send(JSON.stringify({
           type: 'init',
           host: this.host,
           port: this.port,
           username: this.user,
           password: this.pass,
-          rows: this.term.rows,
-          cols: this.term.cols
+          rows: active.term.rows || 24,
+          cols: active.term.cols || 80
         }));
       }, 100);
     });
   }
 
   disconnectSession = () => {
-    if (this.ws) this.ws.close();
+    const active = this.activeSession;
+    if (active?.ws) {
+      try { active.ws.close(); } catch (e) {}
+    }
     this.setView('setup');
   };
 
@@ -1603,8 +1902,9 @@ export class PtyApp extends LitElement {
 
   adjustFontSize(delta: number) {
     if (!this.term) return;
-    const currentSize = this.term.options.fontSize || 14;
+    const currentSize = this.term.options.fontSize || this.terminalFontSize || 10;
     const newSize = Math.max(8, Math.min(30, currentSize + delta));
+    this.terminalFontSize = newSize;
     this.term.options.fontSize = newSize;
 
     requestAnimationFrame(() => {
@@ -2949,6 +3249,69 @@ export class PtyApp extends LitElement {
 
       <!-- Terminal View -->
       <div id="terminal-view" class="view ${this.activeTab === 'terminal' ? 'active' : ''}">
+        <!-- Terminal Sessions Tabs Bar -->
+        <div class="terminal-tabs-bar">
+          <div class="terminal-tabs-list">
+            ${this.sessions.map((session) => html`
+              <div 
+                class="terminal-tab-item ${session.id === this.activeSessionId ? 'active' : ''}" 
+                @click="${() => this.switchTerminalSession(session.id)}"
+                @dblclick="${(e: MouseEvent) => {
+                  e.stopPropagation();
+                  this.startRenamingSession(session.id, session.name);
+                }}"
+                title="${session.name} (Double-click or tap ✎ to rename)"
+              >
+                <span class="terminal-tab-status-dot ${session.statusType}"></span>
+                ${this.editingSessionId === session.id ? html`
+                  <input 
+                    type="text" 
+                    class="terminal-tab-rename-input"
+                    .value="${this.editingSessionName}"
+                    @click="${(e: MouseEvent) => e.stopPropagation()}"
+                    @input="${(e: Event) => this.editingSessionName = (e.target as HTMLInputElement).value}"
+                    @keydown="${(e: KeyboardEvent) => {
+                      if (e.key === 'Enter') {
+                        this.saveSessionRename(session.id);
+                      } else if (e.key === 'Escape') {
+                        this.cancelSessionRename();
+                      }
+                    }}"
+                    @blur="${() => this.saveSessionRename(session.id)}"
+                  />
+                ` : html`
+                  <span class="terminal-tab-title">${session.name}</span>
+                  <span 
+                    class="terminal-tab-rename-btn" 
+                    @click="${(e: MouseEvent) => {
+                      e.stopPropagation();
+                      this.startRenamingSession(session.id, session.name);
+                    }}"
+                    title="Rename session"
+                  >✎</span>
+                `}
+                ${this.sessions.length > 1 ? html`
+                  <span 
+                    class="terminal-tab-close-btn" 
+                    @click="${(e: MouseEvent) => {
+                      e.stopPropagation();
+                      this.closeTerminalSession(session.id);
+                    }}"
+                    title="Close session"
+                  >✕</span>
+                ` : ''}
+              </div>
+            `)}
+          </div>
+          <button 
+            class="terminal-new-tab-btn" 
+            @click="${() => this.createNextTerminalSession(false)}" 
+            title="New Terminal Session"
+          >
+            +
+          </button>
+        </div>
+
         <div id="terminal-container" class="${this.getAnimationClass()} ${this.isLoading.terminal ? 'skeleton' : ''}" style="position: relative; overflow: hidden; background-color: ${this.terminalCustomBg || '#1e1e1e'};">
           ${this.terminalBgImage ? html`
             <div class="terminal-bg-layer" style="${this.getBgLayerStyle()}"></div>
@@ -2973,20 +3336,23 @@ export class PtyApp extends LitElement {
             <button class="search-btn" @click="${this.searchPrev}" title="Previous (Shift+Enter)">▲</button>
             <button class="search-btn" @click="${this.closeSearch}" title="Close (Esc)">✕</button>
           </div>
-          <div id="terminal" style="position: relative; z-index: 1;"></div>
+          <div id="terminal-mounts-wrapper" style="position: relative; width: 100%; height: 100%; z-index: 1;"></div>
           ${this.showScrollToBottom ? html`
             <button class="scroll-to-bottom-btn" @click="${this.scrollToBottom}">
               ${this.renderHeroicon('chevron-down', 'margin-right: 4px; vertical-align: middle;', 14)} Scroll to bottom
             </button>
           ` : ''}
-
+          ${!this.toolbarVisible ? html`
+            <button class="toolbar-toggle-btn toolbar-floating" @click="${() => this.toolbarVisible = true}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}" title="Show Toolbar">
+              ${this.renderHeroicon('chevron-up', '', 14)}
+            </button>
+          ` : ''}
         </div>
-        
-        <button class="toolbar-toggle-btn" @click="${() => this.toolbarVisible = !this.toolbarVisible}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}" title="${this.toolbarVisible ? 'Hide Toolbar' : 'Show Toolbar'}">
-          ${this.renderHeroicon(this.toolbarVisible ? 'chevron-down' : 'chevron-up', '', 16)}
-        </button>
 
-        <div class="vs-toolbar" style="display: ${this.toolbarVisible ? 'flex' : 'none'}">
+        <div class="vs-toolbar" style="display: ${this.toolbarVisible ? 'flex' : 'none'}; background-color: ${this.terminalCustomBg || '#1e1e1e'}; color: ${this.terminalCustomFg || '#cccccc'};">
+          <button class="toolbar-toggle-btn" @click="${() => this.toolbarVisible = false}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}" title="Hide Toolbar">
+            ${this.renderHeroicon('chevron-down', '', 14)}
+          </button>
           <!-- Popup Menu with Filterable Search & Shortcuts -->
           <div id="toolbar-popup" class="toolbar-popup ${this.palettePopupActive ? 'show' : ''}">
             <div class="popup-search-box">
