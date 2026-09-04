@@ -62,8 +62,8 @@ fi
 # Dependencies (optimized install to save internet data and memory)
 if [ -f "package.json" ]; then
     if [ ! -d "node_modules" ]; then
-        echo -e "${YELLOW}Installing npm dependencies (Optimized - No Audits, No Funds)...${NC}"
-        npm install --no-audit --no-fund --loglevel=error
+        echo -e "${YELLOW}Installing npm dependencies (Fast CI / Cache mode)...${NC}"
+        npm ci --prefer-offline --no-audit --no-fund --loglevel=error 2>/dev/null || npm install --prefer-offline --no-audit --no-fund --loglevel=error
     else
         echo -e "${GREEN}✓ node_modules found. Skipping npm install.${NC}"
     fi
