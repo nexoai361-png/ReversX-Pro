@@ -822,6 +822,14 @@ pty-app {
   color: #cccccc;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+  will-change: scroll-position;
+  -webkit-tap-highlight-color: transparent;
+
+  @media (max-width: 480px) {
+    padding: 20px 12px;
+  }
 }
 
 .menu-container {
@@ -831,7 +839,7 @@ pty-app {
   flex-shrink: 0;
 
   @media (max-width: 480px) {
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
 
   @media (orientation: landscape) and (max-height: 600px) {
@@ -845,7 +853,7 @@ pty-app {
   border-radius: 0;
   padding: 8px 16px;
   color: #cccccc;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0px;
   display: flex;
@@ -854,7 +862,15 @@ pty-app {
   cursor: pointer;
   user-select: none;
   font-family: 'Lato', sans-serif;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s cubic-bezier(0.2, 0, 0, 1), transform 0.12s ease;
+  touch-action: manipulation;
+
+  &:active {
+    transform: scale(0.98);
+    background-color: #007acc;
+    color: #ffffff;
+  }
 
   &::before {
     content: '>';
@@ -869,31 +885,44 @@ pty-app {
   bottom: 100%;
   left: 0;
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
   background-color: #252526;
   border: 1px solid #007acc;
   border-radius: 0;
   overflow: hidden;
-  box-shadow: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 10;
 
   &.show {
     display: block;
+    animation: dropupSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes dropupSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .dropup-item {
-  padding: 10px 16px;
+  padding: 9px 14px;
   color: #cccccc;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   cursor: pointer;
   display: block;
   text-align: center;
   font-family: 'Lato', sans-serif;
   transition: background-color 0.15s ease, color 0.15s ease;
+  touch-action: manipulation;
 
-  &:hover {
+  &:hover, &:active {
     background-color: #04395e;
     color: #ffffff;
   }
@@ -902,7 +931,7 @@ pty-app {
 .welcome-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 32px;
+  gap: 24px;
   width: 100%;
   max-width: 800px;
 
@@ -912,6 +941,10 @@ pty-app {
     gap: 12px;
     max-width: 100%;
   }
+
+  @media (max-width: 480px) {
+    gap: 16px;
+  }
 }
 
 .welcome-section {
@@ -920,7 +953,7 @@ pty-app {
   border-radius: 0;
   border: 1px solid #333333;
   text-align: left;
-  transition: none;
+  transition: border-color 0.15s ease;
 
   h3 {
     font-size: 12px;
@@ -936,22 +969,29 @@ pty-app {
   
   .tips-header {
     user-select: none;
+    touch-action: manipulation;
     
     &:hover .tips-chevron-btn {
       transform: scale(1.15);
     }
+
+    &:active .tips-chevron-btn {
+      transform: scale(0.95);
+    }
   }
 
   .tips-preview {
-    transition: color 0.15s;
+    transition: color 0.15s ease;
+    touch-action: manipulation;
     
-    &:hover {
+    &:hover, &:active {
       color: var(--text-bright, #ffffff);
     }
   }
 
   .short-tips-list {
-    animation: viewFadeIn 0.2s ease forwards;
+    animation: tipsExpandSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, opacity;
 
     &.horizontal-tips {
       width: 100%;
@@ -964,13 +1004,16 @@ pty-app {
         overflow-x: auto;
         overflow-y: hidden;
         scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
         padding-bottom: 8px;
         padding-top: 2px;
+        will-change: scroll-position;
 
         /* Custom scrollbar for mobile/browser */
         scrollbar-width: thin;
-        scrollbar-color: var(--accent, #3b82f6) var(--bg-main, #1e1e1e);
+        scrollbar-color: var(--accent, #007acc) var(--bg-main, #1e1e1e);
 
         &::-webkit-scrollbar {
           height: 5px;
@@ -980,7 +1023,7 @@ pty-app {
           border-radius: 4px;
         }
         &::-webkit-scrollbar-thumb {
-          background: var(--accent, #3b82f6);
+          background: var(--accent, #007acc);
           border-radius: 4px;
         }
       }
@@ -999,6 +1042,17 @@ pty-app {
   }
 }
 
+@keyframes tipsExpandSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .short-tip-item {
   display: flex;
   align-items: flex-start;
@@ -1006,15 +1060,23 @@ pty-app {
   padding: 12px 14px;
   background: #1e1e1e;
   border: 1px solid #333333;
-  border-radius: 10px;
-  transition: background 0.15s, border-color 0.15s;
+  border-radius: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
   flex: 0 0 80%;
   min-width: 220px;
   max-width: 300px;
   scroll-snap-align: start;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: #252526;
+    border-color: #007acc;
+  }
+
+  &:active {
+    transform: scale(0.98);
+    background: #04395e;
     border-color: #007acc;
   }
 
@@ -1047,39 +1109,68 @@ pty-app {
 }
 
 .welcome-section h3 {
-  font-size: 16px;
-  margin-bottom: 20px;
-  color: var(--text-bright, #ffffff);
-  font-weight: 500;
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: #ffffff;
+  font-weight: 600;
+  font-family: 'Lato', sans-serif;
+  text-transform: uppercase;
 }
 
 .welcome-section p {
-  color: var(--text-dim, #969696);
-  font-size: 14px;
+  color: #969696;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .welcome-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .welcome-actions button {
-  padding: 10px 16px;
-  background-color: var(--bg-main);
-  color: var(--text-normal);
-  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background-color: #252526;
+  color: #cccccc;
+  border: 1px solid #333333;
   cursor: pointer;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 0;
+  font-size: 13px;
   text-align: left;
-  transition: all 0.2s;
-}
+  transition: background-color 0.15s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s cubic-bezier(0.2, 0, 0, 1), transform 0.12s ease, color 0.15s ease;
+  touch-action: manipulation;
 
-.welcome-actions button:hover {
-  background-color: var(--bg-card);
-  border-color: var(--accent);
+  i {
+    color: #8e8e93;
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+  }
+
+  &:hover {
+    background-color: #04395e;
+    border-color: #007acc;
+    color: #ffffff;
+
+    i {
+      color: #ffffff;
+    }
+  }
+
+  &:active {
+    transform: scale(0.98);
+    background-color: #007acc;
+    border-color: #007acc;
+    color: #ffffff;
+
+    i {
+      color: #ffffff;
+    }
+  }
 }
 
 .scroll-to-bottom-btn {
@@ -1106,11 +1197,15 @@ pty-app {
   flex: 1;
   padding: 40px 60px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+  will-change: scroll-position;
   max-width: 1200px;
   margin: 0 auto;
   
   @media (max-width: 768px) {
-    padding: 20px;
+    padding: 20px 16px;
   }
   
   h2 {
@@ -1149,13 +1244,17 @@ pty-app {
     background: var(--input-bg);
     border: 1px solid var(--input-border);
     color: var(--text-bright);
-    padding: 4px 8px;
+    padding: 8px 10px;
     font-size: 13px;
     outline: none;
     font-family: var(--font-ui);
+    box-sizing: border-box;
+    transition: border-color 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease;
+    touch-action: manipulation;
     
     &:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.25);
     }
   }
 }
@@ -1249,23 +1348,28 @@ pty-app {
   background: var(--accent);
   color: #fff;
   border: none;
-  padding: 6px 14px;
+  padding: 8px 16px;
   width: auto;
   min-width: 100px;
   font-size: 13px;
   font-family: var(--font-ui);
   cursor: pointer;
   margin-top: 10px;
-  transition: background 0.1s;
+  transition: background 0.15s cubic-bezier(0.2, 0, 0, 1), transform 0.12s ease;
+  touch-action: manipulation;
   
   &:hover {
     background: var(--accent-hover);
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
   
   &.secondary {
     background: #3a3d41;
     margin-top: 0;
-    padding: 4px 10px;
+    padding: 6px 12px;
     
     &:hover {
       background: #45494e;
@@ -1445,22 +1549,29 @@ pty-app {
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   color: var(--text-bright);
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-radius: 0;
+  transition: border-color 0.15s cubic-bezier(0.2, 0, 0, 1), background-color 0.15s ease, transform 0.12s ease;
+  touch-action: manipulation;
   
   &:hover {
-    border-color: #555;
+    border-color: #007acc;
+  }
+
+  &:active {
+    transform: scale(0.99);
   }
   
   &::after {
     content: '▼';
     font-size: 8px;
     color: #888;
+    transition: transform 0.15s ease;
   }
 }
 
@@ -1473,9 +1584,12 @@ pty-app {
   border: 1px solid var(--border);
   margin-top: 2px;
   z-index: 1000;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  max-height: 200px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  max-height: 220px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
   border-radius: 0;
   
   opacity: 0;
@@ -1493,12 +1607,14 @@ pty-app {
 }
 
 .select-option {
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 13px;
   color: var(--text-normal);
   cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  touch-action: manipulation;
   
-  &:hover {
+  &:hover, &:active {
     background: var(--input-bg);
     color: var(--text-bright);
   }
@@ -1825,28 +1941,241 @@ pty-app {
 }
 
 .terminal-new-tab-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  justify-content: center;
+  width: 22px;
   height: 22px;
-  background-color: transparent;
-  border: 1px solid transparent;
+  padding: 0;
+  margin: 0 4px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   color: #cccccc;
   font-family: var(--font-ui, "Lato", sans-serif);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 50% !important;
   transition: all 0.15s ease;
+  line-height: 1;
 
   &:hover {
     background-color: var(--accent, #007acc);
     color: #ffffff;
+    border-color: var(--accent, #007acc);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.activity-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #252526;
+  padding: 4px 8px;
+  border-bottom: 1px solid #333333;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: visible !important;
+}
+
+.hamburger-menu-btn {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+
+  &.active {
+    background-color: #007acc;
+    color: #ffffff;
+  }
+}
+
+.header-terminal-dropdown-wrapper {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  z-index: 1001;
+}
+
+.header-terminal-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  height: 24px;
+  background-color: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+
+  &:hover, &.active {
+    background-color: #007acc;
+    color: #ffffff;
+    border-color: #007acc;
+
+    svg {
+      color: #ffffff !important;
+      stroke: #ffffff !important;
+    }
   }
 
   &:active {
     transform: scale(0.96);
+  }
+}
+
+.terminal-header-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 215px;
+  background-color: #252526;
+  border: 1px solid #454545;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  border-radius: 2px;
+  padding: 4px 0;
+  font-family: var(--font-ui, "Lato", sans-serif);
+  animation: dropdownFadeIn 0.12s ease-out;
+  pointer-events: auto;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.terminal-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: #cccccc;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+
+  &:hover {
+    background-color: #04395e;
+    color: #ffffff;
+
+    i {
+      color: #ffffff !important;
+    }
+  }
+}
+
+.terminal-dropdown-divider {
+  height: 1px;
+  background-color: #333333;
+  margin: 4px 0;
+}
+
+.terminal-dropdown-zoom-section {
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.terminal-zoom-label {
+  font-size: 11px;
+  color: #cccccc;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.terminal-zoom-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.terminal-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 0 8px;
+  flex-shrink: 0;
+  height: 100%;
+  background-color: #252526;
+  border-left: 1px solid #333333;
+}
+
+.terminal-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  background-color: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+  font-family: var(--font-code, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+  line-height: 1;
+  padding: 0;
+
+  &:hover {
+    background-color: #007acc;
+    color: #ffffff;
+    border-color: #007acc;
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.terminal-zoom-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  height: 20px;
+  background-color: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #4fc1ff;
+  font-family: var(--font-code, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+  line-height: 1;
+
+  &:hover {
+    background-color: #007acc;
+    color: #ffffff;
+    border-color: #007acc;
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 
@@ -2411,7 +2740,8 @@ input[type=range]::-moz-range-track {
   margin-top: 10px;
   border: 1px solid var(--border, #3d3d40);
   background: var(--bg-card, #2d2d30);
-  border-radius: 4px;
+  border-radius: 0;
+  transition: border-color 0.15s ease;
 }
 .shortcut-item {
   display: flex;
@@ -2419,9 +2749,31 @@ input[type=range]::-moz-range-track {
   align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border, #3d3d40);
-}
-.shortcut-item:last-child {
-  border-bottom: none;
+  transition: background-color 0.12s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  input {
+    background: var(--input-bg, #1e1e1e);
+    border: 1px solid var(--input-border, #3a3d41);
+    color: var(--accent, #007acc);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: var(--font-code, monospace);
+    border-radius: 0;
+    outline: none;
+    text-align: right;
+    width: 130px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    touch-action: manipulation;
+
+    &:focus {
+      border-color: var(--accent, #007acc);
+      background: #111111;
+    }
+  }
 }
 .shortcut-command {
   font-size: 13px;
@@ -2430,17 +2782,17 @@ input[type=range]::-moz-range-track {
 
 /* VS Code Toolbar Styles */
 :root {
-  --vscode-bg: #181818;
+  --vscode-bg: #252526;
   --vscode-text: #cccccc;
   --vscode-active: #ffffff;
 }
 
 .vs-toolbar {
   position: relative;
-  bottom: 0;
+  top: 2px;
   left: 0;
   width: 100%;
-  background-color: var(--vscode-bg, #181818);
+  background-color: #252526 !important;
   padding: 2px 4px 3px 4px;
   box-sizing: border-box;
   display: flex;
@@ -2459,7 +2811,7 @@ input[type=range]::-moz-range-track {
   position: absolute;
   right: 12px;
   bottom: 100%;
-  background-color: var(--vscode-bg, #181818);
+  background-color: #252526 !important;
   color: var(--vscode-text, #cccccc);
   border: none;
   border-radius: 4px 4px 0 0;

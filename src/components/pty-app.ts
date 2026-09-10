@@ -106,6 +106,7 @@ export class PtyApp extends LitElement {
   @state() terminalCursorStyleLabel: string = "Blinking Block";
   @state() wordWrap: boolean = true;
   @state() terminalFontSize: number = 10;
+  @state() terminalZoomLevel: number = 100;
   @state() terminalCustomFg: string = '#cccccc';
   @state() terminalCustomBg: string = '#1e1e1e';
   @state() customThemes: Array<{ value: string; label: string; background: string; foreground: string; cursor: string }> = [];
@@ -224,6 +225,7 @@ export class PtyApp extends LitElement {
   @state() tooltipX: number = 0;
   @state() tooltipY: number = 0;
   @state() private dropupMenuOpen: boolean = false;
+  @state() private terminalMenuOpen: boolean = false;
   private tooltipTimer: any = null;
   private toolbarHideTimer: any;
 
@@ -232,6 +234,7 @@ export class PtyApp extends LitElement {
   private resizeObserver!: ResizeObserver;
   private _fgPicker: any = null;
   private _bgPicker: any = null;
+  private windowClickHandler: any = null;
 
 
 
@@ -367,9 +370,9 @@ export class PtyApp extends LitElement {
     
     this.initBatteryIndicator();
 
-    window.addEventListener('click', (e) => {
+    this.windowClickHandler = (e: MouseEvent) => {
+      const path = e.composedPath();
       if (this.palettePopupActive) {
-        const path = e.composedPath();
         const popup = this.shadowRoot?.querySelector('#toolbar-popup');
         const menuBtn = this.shadowRoot?.querySelector('#menu-btn');
         if (popup && !path.includes(popup) && menuBtn && !path.includes(menuBtn)) {
@@ -377,7 +380,14 @@ export class PtyApp extends LitElement {
           this.paletteSearchValue = '';
         }
       }
-    });
+      if (this.terminalMenuOpen) {
+        const wrapper = this.shadowRoot?.querySelector('.header-terminal-dropdown-wrapper');
+        if (wrapper && !path.includes(wrapper)) {
+          this.terminalMenuOpen = false;
+        }
+      }
+    };
+    window.addEventListener('click', this.windowClickHandler);
 
     // Turn off loading states after 1s
     setTimeout(() => {
@@ -408,6 +418,9 @@ export class PtyApp extends LitElement {
     this.stopFpsCounter();
     window.removeEventListener('resize', this.onWindowResize);
     window.removeEventListener('click', this.onWindowClick);
+    if (this.windowClickHandler) {
+      window.removeEventListener('click', this.windowClickHandler);
+    }
     window.removeEventListener('keydown', this.handleKeyDown);
     if (this.resizeObserver) this.resizeObserver.disconnect();
     this.sessions.forEach(s => {
@@ -428,7 +441,49 @@ export class PtyApp extends LitElement {
     if (e.key === 'Escape' && this.isCommandPaletteOpen) {
       this.isCommandPaletteOpen = false;
     }
+    if (e.altKey && (e.key === '+' || e.key === '=')) {
+      e.preventDefault();
+      this.zoomInTerminal();
+    } else if (e.altKey && (e.key === '-' || e.key === '_')) {
+      e.preventDefault();
+      this.zoomOutTerminal();
+    }
   };
+
+  zoomInTerminal = () => {
+    if (this.terminalZoomLevel < 250) {
+      this.terminalZoomLevel = Math.min(250, this.terminalZoomLevel + 10);
+      this.applyTerminalZoom();
+    }
+  };
+
+  zoomOutTerminal = () => {
+    if (this.terminalZoomLevel > 50) {
+      this.terminalZoomLevel = Math.max(50, this.terminalZoomLevel - 10);
+      this.applyTerminalZoom();
+    }
+  };
+
+  resetTerminalZoom = () => {
+    this.terminalZoomLevel = 100;
+    this.applyTerminalZoom();
+  };
+
+  private applyTerminalZoom() {
+    const baseFontSize = this.terminalFontSize || 10;
+    const computedFontSize = Math.max(6, Math.round(baseFontSize * (this.terminalZoomLevel / 100)));
+    
+    this.sessions.forEach(s => {
+      if (s.term) {
+        s.term.options.fontSize = computedFontSize;
+        try {
+          s.fitAddon?.fit();
+        } catch(e) {}
+      }
+    });
+    
+    this.requestUpdate();
+  }
 
   firstUpdated() {
     this.initTerminal();
@@ -734,7 +789,7 @@ export class PtyApp extends LitElement {
       allowTransparency: true,
       drawBoldTextInBrightColors: true,
       theme: customTheme,
-      fontSize: this.terminalFontSize,
+      fontSize: Math.max(6, Math.round((this.terminalFontSize || 10) * (this.terminalZoomLevel / 100))),
       fontFamily: this.terminalFont,
       letterSpacing: 0.5,
       lineHeight: 1.2,
@@ -1174,6 +1229,22 @@ export class PtyApp extends LitElement {
 
   toggleSidebar = () => {
     this.isSidebarOpen = !this.isSidebarOpen;
+  };
+
+  toggleTerminalMenu = (e: MouseEvent) => {
+    e.stopPropagation();
+    this.terminalMenuOpen = !this.terminalMenuOpen;
+  };
+
+  onWindowClick = () => {
+    this.appFontDropdownActive = false;
+    this.fontDropdownActive = false;
+    this.themeDropdownActive = false;
+    this.animationDropdownActive = false;
+    this.cursorStyleDropdownActive = false;
+    this.uiStyleDropdownActive = false;
+    this.uiAnimationDropdownActive = false;
+    this.dropupMenuOpen = false;
   };
 
   openExplorerFile(fileName: string) {
@@ -1901,15 +1972,11 @@ export class PtyApp extends LitElement {
   };
 
   adjustFontSize(delta: number) {
-    if (!this.term) return;
-    const currentSize = this.term.options.fontSize || this.terminalFontSize || 10;
-    const newSize = Math.max(8, Math.min(30, currentSize + delta));
-    this.terminalFontSize = newSize;
-    this.term.options.fontSize = newSize;
-
-    requestAnimationFrame(() => {
-      this.triggerManualResize();
-    });
+    if (delta > 0) {
+      this.zoomInTerminal();
+    } else if (delta < 0) {
+      this.zoomOutTerminal();
+    }
   }
 
   toggleImmersive = () => {
@@ -2087,6 +2154,7 @@ export class PtyApp extends LitElement {
       { label: 'Paste from Clipboard', shortcut: '', desc: 'Inserts text from your device clipboard into terminal.', action: () => this.pasteTerminalText() },
       { label: 'Decrease Font Size', shortcut: 'Alt+-', desc: 'Makes the terminal text smaller for more density.', action: () => this.adjustFontSize(-1) },
       { label: 'Increase Font Size', shortcut: 'Alt++', desc: 'Makes the terminal text larger for better readability.', action: () => this.adjustFontSize(1) },
+      { label: 'Reset Terminal Zoom (100%)', shortcut: '', desc: 'Resets the terminal scale back to 100%.', action: () => this.resetTerminalZoom() },
       { label: 'Refit Layout', shortcut: '', desc: 'Recalculates terminal dimensions to fit window exactly.', action: () => this.triggerManualResize() },
       { label: 'Toggle Fullscreen', shortcut: '', desc: 'Enables immersive mode to hide browser address bars.', action: () => this.toggleImmersive() },
       { label: 'Find in Terminal', shortcut: 'Ctrl+F', desc: 'Search for text patterns within the terminal buffer.', action: () => this.openSearch() },
@@ -2354,6 +2422,44 @@ export class PtyApp extends LitElement {
           <button class="hamburger-menu-btn ${this.isSidebarOpen ? 'active' : ''}" @click="${this.toggleSidebar}" title="Open File Explorer & Tab Views Menu" aria-label="Toggle Sidebar Navigation">
             ${this.renderHeroicon('bars', '', 18)}
           </button>
+
+          ${this.activeTab === 'terminal' ? html`
+            <!-- VS Code Style Terminal Menu Dropdown Trigger -->
+            <div class="header-terminal-dropdown-wrapper">
+              <button 
+                class="header-terminal-icon-btn ${this.terminalMenuOpen ? 'active' : ''}" 
+                @click="${this.toggleTerminalMenu}"
+                title="Terminal Options & Actions"
+              >
+                ${this.renderHeroicon('terminal', 'color: #4fc1ff;', 14)}
+                ${this.renderHeroicon('chevron-down', 'margin-left: 4px; opacity: 0.8;', 10)}
+              </button>
+
+              ${this.terminalMenuOpen ? html`
+                <div class="terminal-header-dropdown-menu" @click="${(e: MouseEvent) => e.stopPropagation()}">
+                  <!-- New Terminal Session Option -->
+                  <div class="terminal-dropdown-item" @click="${(e: MouseEvent) => { e.stopPropagation(); this.createNextTerminalSession(false); this.terminalMenuOpen = false; }}">
+                    ${this.renderHeroicon('terminal', 'color: #4fc1ff; margin-right: 8px;', 14)}
+                    <span>New Terminal Session</span>
+                  </div>
+
+                  <div class="terminal-dropdown-divider"></div>
+
+                  <!-- Terminal Zoom Level Option -->
+                  <div class="terminal-dropdown-zoom-section" @click="${(e: MouseEvent) => e.stopPropagation()}">
+                    <span class="terminal-zoom-label">
+                      Font Zoom
+                    </span>
+                    <div class="terminal-zoom-controls-group">
+                      <button class="terminal-zoom-btn" @click="${(e: MouseEvent) => { e.stopPropagation(); this.zoomOutTerminal(); }}" title="Zoom Out Terminal (-10%)">-</button>
+                      <button class="terminal-zoom-reset-btn" @click="${(e: MouseEvent) => { e.stopPropagation(); this.resetTerminalZoom(); }}" title="Reset Zoom to 100%">${this.terminalZoomLevel}%</button>
+                      <button class="terminal-zoom-btn" @click="${(e: MouseEvent) => { e.stopPropagation(); this.zoomInTerminal(); }}" title="Zoom In Terminal (+10%)">+</button>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
         </div>
 
         <!-- Sidebar Drawer (VS Code Style File Explorer & Navigation) -->
@@ -2452,27 +2558,27 @@ export class PtyApp extends LitElement {
             <div class="welcome-section">
               <h3>Start</h3>
               <div class="welcome-actions">
-                <button style="font-family: 'Lato', sans-serif;" @click="${() => this.setView('setup')}">Configure Connection</button>
-                <button style="font-family: 'Lato', sans-serif;" @click="${() => this.setView('terminal')}">Open Terminal</button>
+                <button style="font-family: 'Lato', sans-serif;" @click="${() => this.setView('setup')}"><i class="fa-solid fa-gear"></i> Configure Connection</button>
+                <button style="font-family: 'Lato', sans-serif;" @click="${() => this.setView('terminal')}"><i class="fa-solid fa-terminal"></i> Open Terminal</button>
               </div>
             </div>
             <div class="welcome-section tips-section">
               <div class="tips-header" @click="${() => this.tipsExpanded = !this.tipsExpanded}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                 <h3 style="margin-bottom: 0;">Tips</h3>
-                <button type="button" class="tips-chevron-btn" title="${this.tipsExpanded ? 'Collapse Tips' : 'Expand Short Tips'}" style="background: none; border: none; color: var(--text-dim, #8e8e93); font-size: 16px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;">
+                <button type="button" class="tips-chevron-btn" title="${this.tipsExpanded ? 'Collapse Tips' : 'Expand Short Tips'}" style="background: none; border: none; color: #8e8e93; font-size: 13px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;">
                   <i class="fa-solid ${this.tipsExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
                 </button>
               </div>
-              <p class="tips-preview" @click="${() => this.tipsExpanded = !this.tipsExpanded}" style="cursor: pointer; margin-top: 12px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; color: var(--text-dim, #8e8e93);">
+              <p class="tips-preview" @click="${() => this.tipsExpanded = !this.tipsExpanded}" style="cursor: pointer; margin-top: 10px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; color: #8e8e93; font-size: 12px;">
                 <span>Scroll to navigate the terminal view.</span>
-                <span style="font-size: 11px; color: var(--text-dim, #8e8e93); font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+                <span style="font-size: 11px; color: #8e8e93; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
                   ${this.tipsExpanded ? 'Hide tips' : 'More tips'}
                   <i class="fa-solid ${this.tipsExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}" style="font-size: 10px;"></i>
                 </span>
               </p>
 
               ${this.tipsExpanded ? html`
-                <div class="short-tips-list horizontal-tips" style="margin-top: 14px; border-top: 1px solid var(--border, #3d3d40); padding-top: 12px;">
+                <div class="short-tips-list horizontal-tips" style="margin-top: 12px; border-top: 1px solid #333333; padding-top: 10px;">
                   <div class="short-tips-scroll-container">
                     <div class="short-tip-item">
                       <i class="fa-solid fa-hand-pointer tip-icon"></i>
@@ -3303,13 +3409,6 @@ export class PtyApp extends LitElement {
               </div>
             `)}
           </div>
-          <button 
-            class="terminal-new-tab-btn" 
-            @click="${() => this.createNextTerminalSession(false)}" 
-            title="New Terminal Session"
-          >
-            +
-          </button>
         </div>
 
         <div id="terminal-container" class="${this.getAnimationClass()} ${this.isLoading.terminal ? 'skeleton' : ''}" style="position: relative; overflow: hidden; background-color: ${this.terminalCustomBg || '#1e1e1e'};">
@@ -3349,7 +3448,7 @@ export class PtyApp extends LitElement {
           ` : ''}
         </div>
 
-        <div class="vs-toolbar" style="display: ${this.toolbarVisible ? 'flex' : 'none'}; background-color: ${this.terminalCustomBg || '#1e1e1e'}; color: ${this.terminalCustomFg || '#cccccc'};">
+        <div class="vs-toolbar" style="display: ${this.toolbarVisible ? 'flex' : 'none'}; background-color: #252526; color: ${this.terminalCustomFg || '#cccccc'};">
           <button class="toolbar-toggle-btn" @click="${() => this.toolbarVisible = false}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}" title="Hide Toolbar">
             ${this.renderHeroicon('chevron-down', '', 14)}
           </button>
