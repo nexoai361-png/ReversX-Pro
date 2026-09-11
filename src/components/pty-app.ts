@@ -2837,25 +2837,25 @@ export class PtyApp extends LitElement {
             <div class="field">
               <label>Custom Colors</label>
               <div class="description">Select custom primary colors and optionally save them as a custom theme.</div>
-              <div style="display: flex; gap: 16px; align-items: center; margin-top: 8px;">
-                <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+              <div style="display: flex; gap: 12px; align-items: center; margin-top: 6px;">
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
                   <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">Foreground</span>
-                  <div id="custom-fg-color-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); cursor: pointer; color: var(--text-bright); font-size: 13px; font-family: var(--font-code, monospace); transition: background 0.15s, border-color 0.15s;">
-                    <div style="width: 14px; height: 14px; border-radius: 0; background: ${this.terminalCustomFg}; border: 1px solid rgba(255,255,255,0.25);"></div>
+                  <div id="custom-fg-color-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); cursor: pointer; color: var(--text-bright); font-size: 12px; font-family: var(--font-code, monospace); transition: background 0.15s, border-color 0.15s;">
+                    <div style="width: 12px; height: 12px; border-radius: 0; background: ${this.terminalCustomFg}; border: 1px solid rgba(255,255,255,0.25);"></div>
                     <span style="flex: 1; text-transform: uppercase;">${this.terminalCustomFg}</span>
                   </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
                   <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">Background</span>
-                  <div id="custom-bg-color-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); cursor: pointer; color: var(--text-bright); font-size: 13px; font-family: var(--font-code, monospace); transition: background 0.15s, border-color 0.15s;">
-                    <div style="width: 14px; height: 14px; border-radius: 0; background: ${this.terminalCustomBg}; border: 1px solid rgba(255,255,255,0.25);"></div>
+                  <div id="custom-bg-color-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); cursor: pointer; color: var(--text-bright); font-size: 12px; font-family: var(--font-code, monospace); transition: background 0.15s, border-color 0.15s;">
+                    <div style="width: 12px; height: 12px; border-radius: 0; background: ${this.terminalCustomBg}; border: 1px solid rgba(255,255,255,0.25);"></div>
                     <span style="flex: 1; text-transform: uppercase;">${this.terminalCustomBg}</span>
                   </div>
                 </div>
               </div>
-              <div style="display: flex; gap: 8px; margin-top: 12px; align-items: center; width: 100%;">
-                <input type="text" id="new-theme-name" placeholder="Theme Name (e.g., My Retro)" style="flex: 1; height: 36px; padding: 0 12px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); color: var(--text-bright); font-size: 13px; font-family: inherit; box-sizing: border-box;" />
-                <button type="button" class="action-btn" style="height: 36px; padding: 0 16px; font-size: 12px; font-family: 'Lato', sans-serif; margin: 0; background: var(--accent); white-space: nowrap; border: none; border-radius: 0; cursor: pointer; color: #ffffff; font-weight: 500;" @click="${this.saveAsCustomTheme}">Save Theme</button>
+              <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center; width: 100%;">
+                <input type="text" id="new-theme-name" placeholder="Theme Name (e.g., My Retro)" style="flex: 1; height: 30px; padding: 0 10px; border: 1px solid var(--input-border, #3a3d41); border-radius: 0; background: var(--input-bg, #1e1e1e); color: var(--text-bright); font-size: 12px; font-family: inherit; box-sizing: border-box;" />
+                <button type="button" class="action-btn" style="height: 30px; padding: 0 12px; font-size: 11px; font-family: 'Lato', sans-serif; margin: 0; background: var(--accent); white-space: nowrap; border: none; border-radius: 0; cursor: pointer; color: #ffffff; font-weight: 500;" @click="${this.saveAsCustomTheme}">Save Theme</button>
               </div>
             </div>
 

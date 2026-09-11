@@ -1222,21 +1222,21 @@ pty-app {
 }
 
 .field {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   
   label {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-bright);
     margin-bottom: 4px;
     font-weight: 700;
   }
   
   .description {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-dim);
-    margin-bottom: 8px;
-    line-height: 1.4;
+    margin-bottom: 6px;
+    line-height: 1.35;
   }
   
   input {
@@ -1244,8 +1244,8 @@ pty-app {
     background: var(--input-bg);
     border: 1px solid var(--input-border);
     color: var(--text-bright);
-    padding: 8px 10px;
-    font-size: 13px;
+    padding: 5px 8px;
+    font-size: 12px;
     outline: none;
     font-family: var(--font-ui);
     box-sizing: border-box;
@@ -1348,13 +1348,13 @@ pty-app {
   background: var(--accent);
   color: #fff;
   border: none;
-  padding: 8px 16px;
+  padding: 5px 12px;
   width: auto;
-  min-width: 100px;
-  font-size: 13px;
+  min-width: 80px;
+  font-size: 12px;
   font-family: var(--font-ui);
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 8px;
   transition: background 0.15s cubic-bezier(0.2, 0, 0, 1), transform 0.12s ease;
   touch-action: manipulation;
   
@@ -1369,7 +1369,7 @@ pty-app {
   &.secondary {
     background: #3a3d41;
     margin-top: 0;
-    padding: 6px 12px;
+    padding: 4px 10px;
     
     &:hover {
       background: #45494e;
@@ -1549,8 +1549,8 @@ pty-app {
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   color: var(--text-bright);
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 5px 10px;
+  font-size: 12px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -1585,7 +1585,7 @@ pty-app {
   margin-top: 2px;
   z-index: 1000;
   box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-  max-height: 220px;
+  max-height: 200px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
@@ -1607,8 +1607,8 @@ pty-app {
 }
 
 .select-option {
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 12px;
   color: var(--text-normal);
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
@@ -2490,12 +2490,12 @@ pty-app {
 .android-font-slider {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: var(--bg-card);
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-radius: 0 !important;
   border: 1px solid var(--border);
-  margin-top: 8px;
+  margin-top: 6px;
 
   .font-icon {
     color: var(--text-dim);
