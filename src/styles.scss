@@ -2179,9 +2179,17 @@ pty-app {
   }
 }
 
+#terminal-view {
+  overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 #terminal-container {
   flex: 1;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   height: 100%;
   background: var(--bg-main);
   overflow: hidden !important;
@@ -2190,10 +2198,12 @@ pty-app {
   border-radius: 0 !important;
   border: none !important;
   margin: 0 !important;
+  box-sizing: border-box !important;
 }
 
 #terminal-mounts-wrapper {
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   height: 100%;
   position: absolute;
   top: 0;
@@ -2202,10 +2212,13 @@ pty-app {
   bottom: 0;
   background: var(--bg-main, #1e1e1e);
   border: none !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 }
 
 .session-terminal-canvas {
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   height: 100%;
   position: absolute;
   top: 0;
@@ -2216,6 +2229,8 @@ pty-app {
   border-radius: 0 !important;
   border: none !important;
   margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 
   &.hidden {
     display: none !important;
@@ -2227,26 +2242,66 @@ pty-app {
   
   &.no-word-wrap .xterm-rows > div {
     white-space: pre !important;
-    overflow-x: visible !important;
+    overflow-x: hidden !important;
   }
 }
 
 #terminal {
-  width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
   height: 100%;
   background: var(--bg-main);
   border-radius: 0 !important;
   border: none !important;
   margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
   
   &.no-word-wrap .xterm-rows > div {
     white-space: pre !important;
-    overflow-x: visible !important;
+    overflow-x: hidden !important;
   }
 }
 
-.xterm .xterm-viewport {
-  background-color: var(--bg-main) !important;
+.xterm {
+  padding: 2px 4px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+
+  .xterm-viewport {
+    background-color: var(--bg-main) !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .xterm-screen {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+
+    canvas {
+      max-width: 100% !important;
+    }
+  }
+
+  .xterm-rows {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+
+    > div {
+      max-width: 100% !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+  }
 }
 
 .status-bar {

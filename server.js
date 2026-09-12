@@ -21,7 +21,7 @@ class LocalShellStream {
       this.proc.stdin.write(data);
     }
   }
-  setWindow(cols, rows) {
+  setWindow(rows, cols) {
     if (this.proc && !this.proc.killed) {
       try {
         this.proc.stdout?.emit('resize');

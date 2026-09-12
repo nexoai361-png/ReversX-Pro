@@ -409,6 +409,10 @@ export class PtyApp extends LitElement {
     }, 1000);
 
     window.addEventListener('resize', this.onWindowResize);
+    window.addEventListener('orientationchange', this.onWindowResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', this.onWindowResize);
+    }
     window.addEventListener('click', this.onWindowClick);
     window.addEventListener('keydown', this.handleKeyDown);
   }
@@ -417,6 +421,10 @@ export class PtyApp extends LitElement {
     super.disconnectedCallback();
     this.stopFpsCounter();
     window.removeEventListener('resize', this.onWindowResize);
+    window.removeEventListener('orientationchange', this.onWindowResize);
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', this.onWindowResize);
+    }
     window.removeEventListener('click', this.onWindowClick);
     if (this.windowClickHandler) {
       window.removeEventListener('click', this.windowClickHandler);
@@ -725,6 +733,17 @@ export class PtyApp extends LitElement {
       try {
         if (container.offsetWidth > 0 && container.offsetHeight > 0) {
           active.fitAddon.fit();
+          if (active.term.cols > 0 && active.term.rows > 0) {
+            active.dimsText = `${active.term.cols} x ${active.term.rows}`;
+            this.dimsText = active.dimsText;
+            if (active.ws?.readyState === 1) {
+              active.ws.send(JSON.stringify({
+                type: 'resize',
+                cols: active.term.cols,
+                rows: active.term.rows
+              }));
+            }
+          }
           if (document.activeElement?.tagName !== 'INPUT') {
             active.term.focus?.();
           }
@@ -784,16 +803,18 @@ export class PtyApp extends LitElement {
     const term = new Terminal({
       cursorBlink: isBlinking,
       cursorStyle: cleanCursorStyle,
-      convertEol: true,
+      convertEol: false,
       allowProposedApi: true,
-      allowTransparency: true,
+      allowTransparency: false,
       drawBoldTextInBrightColors: true,
       theme: customTheme,
       fontSize: Math.max(6, Math.round((this.terminalFontSize || 10) * (this.terminalZoomLevel / 100))),
       fontFamily: this.terminalFont,
-      letterSpacing: 0.5,
-      lineHeight: 1.2,
-      scrollback: 10000
+      letterSpacing: 0,
+      lineHeight: 1.15,
+      scrollback: 10000,
+      windowsMode: false,
+      overviewRulerWidth: 0
     });
 
     const fitAddon = new FitAddon();
@@ -1220,10 +1241,17 @@ export class PtyApp extends LitElement {
     this.activeTab = view;
     this.isSidebarOpen = false;
     if (view === 'terminal') {
-      setTimeout(() => {
-        this.triggerManualResize();
-        this.term?.focus?.();
-      }, 50);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          this.triggerManualResize();
+          const active = this.activeSession;
+          if (active && active.term) {
+            if (document.activeElement?.tagName !== 'INPUT') {
+              active.term.focus?.();
+            }
+          }
+        }, 60);
+      });
     }
   }
 
