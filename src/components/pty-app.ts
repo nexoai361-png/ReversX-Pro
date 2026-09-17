@@ -295,6 +295,7 @@ export class PtyApp extends LitElement {
 
   private appFontsList = [
     { value: '"Lato", sans-serif', label: "Lato" },
+    { value: '"Inter", sans-serif', label: "Inter" },
     { value: '"Fira Sans", sans-serif', label: "Fira Sans" },
     { value: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', label: "System font" },
     { value: '"Cabin", sans-serif', label: "Cabin" }
@@ -415,6 +416,15 @@ export class PtyApp extends LitElement {
     }
     window.addEventListener('click', this.onWindowClick);
     window.addEventListener('keydown', this.handleKeyDown);
+
+    const termContainer = this.querySelector('#terminal-container');
+    if (termContainer) {
+      const observer = new MutationObserver(() => {
+        this.disableInputSuggestions();
+      });
+      observer.observe(termContainer, { childList: true, subtree: true });
+    }
+    this.disableInputSuggestions();
   }
 
   disconnectedCallback() {
@@ -754,6 +764,22 @@ export class PtyApp extends LitElement {
     }
   };
 
+  private disableInputSuggestions = (container?: HTMLElement) => {
+    const root = container || this;
+    const elements = root.querySelectorAll('.xterm-helper-textarea, #terminal-container textarea, #terminal-container input, .session-terminal-canvas textarea');
+    elements.forEach((el) => {
+      el.setAttribute('autocomplete', 'off');
+      el.setAttribute('autocorrect', 'off');
+      el.setAttribute('autocapitalize', 'off');
+      el.setAttribute('autocapitalize', 'none');
+      el.setAttribute('spellcheck', 'false');
+      el.setAttribute('data-gramm', 'false');
+      el.setAttribute('data-enable-grammarly', 'false');
+      el.setAttribute('aria-autocomplete', 'none');
+      el.setAttribute('enterkeyhint', 'enter');
+    });
+  };
+
   createTerminalSession(name?: string, autoConnect = false): TerminalSession {
     const nextNum = this.sessions.length + 1;
     const sessionName = name || `Terminal ${nextNum}`;
@@ -826,6 +852,14 @@ export class PtyApp extends LitElement {
     term.loadAddon(searchAddon);
 
     term.open(containerDiv);
+    this.disableInputSuggestions(containerDiv);
+
+    containerDiv.addEventListener('focusin', () => {
+      this.disableInputSuggestions(containerDiv);
+    });
+    containerDiv.addEventListener('touchstart', () => {
+      this.disableInputSuggestions(containerDiv);
+    }, { passive: true });
 
     containerDiv.addEventListener('pointerdown', () => {
       if (this.isSidebarOpen) {
@@ -871,28 +905,32 @@ export class PtyApp extends LitElement {
       this.resetToolbarTimer();
       let sendData = data;
 
-      if (this.ctrlActive && data.length === 1) {
-        const char = data.toLowerCase();
-        if (char >= 'a' && char <= 'z') {
-          sendData = String.fromCharCode(char.charCodeAt(0) - 96);
-        } else if (char === ' ') {
-          sendData = '\x00';
-        } else if (char === '[') {
-          sendData = '\x1b';
-        } else if (char === '\\') {
-          sendData = '\x1c';
-        } else if (char === ']') {
-          sendData = '\x1d';
-        } else if (char === '^') {
-          sendData = '\x1e';
-        } else if (char === '_') {
-          sendData = '\x1f';
+      if (this.ctrlActive && data.length > 0) {
+        if (data.length === 1) {
+          const char = data.toLowerCase();
+          if (char >= 'a' && char <= 'z') {
+            sendData = String.fromCharCode(char.charCodeAt(0) - 96);
+          } else if (char === ' ') {
+            sendData = '\x00';
+          } else if (char === '[') {
+            sendData = '\x1b';
+          } else if (char === '\\') {
+            sendData = '\x1c';
+          } else if (char === ']') {
+            sendData = '\x1d';
+          } else if (char === '^') {
+            sendData = '\x1e';
+          } else if (char === '_' || char === '/' || char === '-') {
+            sendData = '\x1f';
+          }
         }
         this.ctrlActive = false;
       }
 
-      if (this.altActive && sendData.length === 1) {
-        sendData = '\x1b' + sendData;
+      if (this.altActive && sendData.length > 0) {
+        if (sendData.length === 1) {
+          sendData = '\x1b' + sendData;
+        }
         this.altActive = false;
       }
 
@@ -970,6 +1008,7 @@ export class PtyApp extends LitElement {
       requestAnimationFrame(() => {
         try {
           active.fitAddon.fit();
+          this.disableInputSuggestions(active.containerElement);
           active.term.focus();
         } catch (e) {}
       });
@@ -2102,10 +2141,18 @@ export class PtyApp extends LitElement {
   };
 
   sendCmd = (cmd: string) => {
-    if (this.ws?.readyState === 1) {
-      this.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+    const session = this.activeSession;
+    if (session?.ws?.readyState === 1) {
+      session.ws.send(JSON.stringify({ type: 'input', data: cmd }));
     }
-    this.term?.focus?.();
+    if (session?.term) {
+      session.term.focus();
+      const container = session.containerElement || this.querySelector('#terminal-container');
+      const textarea = container?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement;
+      if (textarea) {
+        try { textarea.focus(); } catch(e) {}
+      }
+    }
   };
 
   sendToolbarKey(key: string) {
@@ -2121,32 +2168,41 @@ export class PtyApp extends LitElement {
     else if (key === 'DOWN') code = '\x1b[B';
     else if (key === 'LEFT') code = '\x1b[D';
     else if (key === 'RIGHT') code = '\x1b[C';
+    else if (key === 'PGUP') code = '\x1b[5~';
+    else if (key === 'PGDN') code = '\x1b[6~';
 
-    if (this.ctrlActive && code.length === 1) {
-      const char = code.toLowerCase();
-      if (char >= 'a' && char <= 'z') {
-        code = String.fromCharCode(char.charCodeAt(0) - 96);
-      } else if (char === ' ') {
-        code = '\x00';
-      } else if (char === '[') {
-        code = '\x1b';
-      } else if (char === '\\') {
-        code = '\x1c';
-      } else if (char === ']') {
-        code = '\x1d';
-      } else if (char === '^') {
-        code = '\x1e';
-      } else if (char === '_') {
-        code = '\x1f';
-      } else if (char === '/') {
-        code = '\x1f';
+    if (this.ctrlActive) {
+      if (key === 'UP') code = '\x1b[1;5A';
+      else if (key === 'DOWN') code = '\x1b[1;5B';
+      else if (key === 'LEFT') code = '\x1b[1;5D';
+      else if (key === 'RIGHT') code = '\x1b[1;5C';
+      else if (code.length === 1) {
+        const char = code.toLowerCase();
+        if (char >= 'a' && char <= 'z') {
+          code = String.fromCharCode(char.charCodeAt(0) - 96);
+        } else if (char === ' ') {
+          code = '\x00';
+        } else if (char === '[') {
+          code = '\x1b';
+        } else if (char === '\\') {
+          code = '\x1c';
+        } else if (char === ']') {
+          code = '\x1d';
+        } else if (char === '^') {
+          code = '\x1e';
+        } else if (char === '_' || char === '/' || char === '-') {
+          code = '\x1f';
+        }
       }
       this.ctrlActive = false;
-    } else if (this.altActive && code.length === 1) {
-      code = '\x1b' + code;
-      this.altActive = false;
-    } else {
-      this.ctrlActive = false;
+    } else if (this.altActive) {
+      if (key === 'UP') code = '\x1b[1;3A';
+      else if (key === 'DOWN') code = '\x1b[1;3B';
+      else if (key === 'LEFT') code = '\x1b[1;3D';
+      else if (key === 'RIGHT') code = '\x1b[1;3C';
+      else if (code.length === 1) {
+        code = '\x1b' + code;
+      }
       this.altActive = false;
     }
 
@@ -2154,10 +2210,18 @@ export class PtyApp extends LitElement {
     this.resetToolbarTimer();
   }
 
-  preventKeyBlur(e: Event) {
+  preventKeyBlur = (e: Event) => {
     e.preventDefault();
-    this.term?.focus?.();
-  }
+    const session = this.activeSession;
+    if (session?.term) {
+      session.term.focus();
+      const container = session.containerElement || this.querySelector('#terminal-container');
+      const textarea = container?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement;
+      if (textarea) {
+        try { textarea.focus(); } catch(e) {}
+      }
+    }
+  };
 
   resetToolbarTimer() {
     this.toolbarVisible = true;
@@ -3506,7 +3570,7 @@ export class PtyApp extends LitElement {
             <button class="key" @click="${() => this.sendToolbarKey('HOME')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">HOME</button>
             <button class="key" @click="${() => this.sendToolbarKey('UP')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">${this.renderHeroicon('arrow-up', '', 14)}</button>
             <button class="key" @click="${() => this.sendToolbarKey('END')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">END</button>
-            <button class="key" @click="${() => this.sendCmd('\x1b[5~')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">PGUP</button>
+            <button class="key" @click="${() => this.sendToolbarKey('PGUP')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">PGUP</button>
           </div>
 
           <!-- Row 2 -->
@@ -3517,7 +3581,7 @@ export class PtyApp extends LitElement {
             <button class="key" @click="${() => this.sendToolbarKey('LEFT')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">${this.renderHeroicon('arrow-left', '', 14)}</button>
             <button class="key" @click="${() => this.sendToolbarKey('DOWN')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">${this.renderHeroicon('arrow-down', '', 14)}</button>
             <button class="key" @click="${() => this.sendToolbarKey('RIGHT')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">${this.renderHeroicon('arrow-right', '', 14)}</button>
-            <button class="key" @click="${() => this.sendCmd('\x1b[6~')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">PGDN</button>
+            <button class="key" @click="${() => this.sendToolbarKey('PGDN')}" @pointerdown="${this.preventKeyBlur}" @mousedown="${this.preventKeyBlur}">PGDN</button>
           </div>
         </div>
       </div>
