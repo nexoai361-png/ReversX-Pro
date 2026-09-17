@@ -15,14 +15,26 @@
     <allow-intent href="sms:*" />
     <allow-intent href="mailto:*" />
     <allow-intent href="geo:*" />
+
+    <preference name="AndroidXEnabled" value="true" />
+    <preference name="EnableGradlePrameters" value="true" />
+
     <platform name="android">
         <allow-intent href="market:*" />
         <icon src="www/app-icon.png" />
         <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/splash-icon.png" />
         <preference name="AndroidWindowSplashScreenBackground" value="#1E1E1E" />
+        <preference name="android-minSdkVersion" value="24" />
+        <preference name="android-targetSdkVersion" value="34" />
+        <preference name="android-compileSdkVersion" value="34" />
         <preference name="android-usesCleartextTraffic" value="true" />
-        <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
-            <application android:usesCleartextTraffic="true" />
-        </edit-config>
+
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+            <uses-permission android:name="android.permission.VIBRATE" />
+        </config-file>
     </platform>
 </widget>
